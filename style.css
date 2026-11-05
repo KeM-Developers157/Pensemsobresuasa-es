@@ -28,7 +28,7 @@
 
 .crop-selection-box {
   border: 2px dashed #0284c7;
-  background-color: rgba(2, 132, 199, 0.15);
+  background-color: rgba(2, 132, 199, 0.2);
   position: absolute;
   pointer-events: none;
 }

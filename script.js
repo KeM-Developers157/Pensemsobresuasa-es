@@ -74,20 +74,9 @@ const paddingInput = document.getElementById('paddingInput');
 const paddingValue = document.getElementById('paddingValue');
 const chkAutoContrast = document.getElementById('chkAutoContrast');
 
-const btnExportPNG = document.getElementById('btnExportPNG');
 const btnExportPDF = document.getElementById('btnExportPDF');
-const btnSendGmail = document.getElementById('btnSendGmail');
 const btnClearAll = document.getElementById('btnClearAll');
 const themeToggle = document.getElementById('themeToggle');
-
-// Gmail Modal
-const gmailModal = document.getElementById('gmailModal');
-const btnCloseGmailModal = document.getElementById('btnCloseGmailModal');
-const btnCancelGmail = document.getElementById('btnCancelGmail');
-const btnConfirmSendGmail = document.getElementById('btnConfirmSendGmail');
-const gmailToInput = document.getElementById('gmailToInput');
-const gmailSubjectInput = document.getElementById('gmailSubjectInput');
-const gmailBodyInput = document.getElementById('gmailBodyInput');
 
 /**
  * PERSISTÊNCIA LOCAL (LOCALSTORAGE)
@@ -106,7 +95,7 @@ function saveStateToLocalStorage() {
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch (err) {
-    console.warn('Não foi possível salvar no localStorage (limite excedido):', err);
+    console.warn('Não foi possível salvar no localStorage:', err);
   }
 }
 
@@ -132,7 +121,6 @@ function loadStateFromLocalStorage() {
       document.documentElement.classList.remove('dark');
     }
 
-    // Atualiza controles da UI com os dados recuperados
     gapInput.value = state.blockGap;
     gapValue.textContent = `${state.blockGap}px`;
     paddingInput.value = state.pagePadding;
@@ -178,11 +166,11 @@ function showToast(message, type = 'success') {
 
   toastMsg.textContent = message;
   if (type === 'success') {
-    toastIcon.className = 'fa-solid fa-circle-check text-emerald-400';
+    toastIcon.className = 'fa-solid fa-circle-check text-emerald-400 text-base';
   } else if (type === 'error') {
-    toastIcon.className = 'fa-solid fa-circle-xmark text-rose-400';
+    toastIcon.className = 'fa-solid fa-circle-xmark text-rose-400 text-base';
   } else {
-    toastIcon.className = 'fa-solid fa-circle-info text-sky-400';
+    toastIcon.className = 'fa-solid fa-circle-info text-sky-400 text-base';
   }
 
   toast.classList.remove('translate-y-10', 'opacity-0');
@@ -220,7 +208,7 @@ function setupSidebarResizer() {
 
   window.addEventListener('mousemove', (e) => {
     if (!isResizing) return;
-    const newWidth = Math.max(260, Math.min(e.clientX, 800));
+    const newWidth = Math.max(280, Math.min(e.clientX, 800));
     leftSidebar.style.width = `${newWidth}px`;
   });
 
@@ -299,23 +287,10 @@ function setupEventListeners() {
   btnAddSnippet.addEventListener('click', createSnippetFromCrop);
   btnSetHeader.addEventListener('click', setHeaderFromCrop);
 
-  btnExportPNG.addEventListener('click', exportAsPNG);
   btnExportPDF.addEventListener('click', exportAsPDF);
 
-  btnSendGmail.addEventListener('click', () => {
-    if (state.elements.length === 0) {
-      showToast('Adicione ao menos um cabeçalho ou recorte antes de enviar!', 'error');
-      return;
-    }
-    gmailModal.classList.remove('hidden');
-  });
-
-  btnCloseGmailModal.addEventListener('click', () => gmailModal.classList.add('hidden'));
-  btnCancelGmail.addEventListener('click', () => gmailModal.classList.add('hidden'));
-  btnConfirmSendGmail.addEventListener('click', dispatchToGmail);
-
   btnClearAll.addEventListener('click', () => {
-    if (confirm('Deseja realmente limpar todos os recortes, arquivos e dados salvos no navegador?')) {
+    if (confirm('Deseja realmente limpar todos os recortes e arquivos carregados?')) {
       state.sourceFiles = [];
       state.elements = [];
       state.activeSourceId = null;
@@ -328,7 +303,7 @@ function setupEventListeners() {
       resetCropOverlay();
       renderSnippetsList();
       renderCanvas();
-      showToast('Projeto e dados salvos foram limpos.');
+      showToast('Tudo limpo com sucesso.');
     }
   });
 }
@@ -367,7 +342,7 @@ function loadImageFile(file) {
       state.sourceFiles.push(item);
       updateSourceDropdown();
       switchSourceFile(item.id);
-      showToast(`Imagem "${file.name}" carregada.`);
+      showToast(`Imagem "${file.name}" carregada com sucesso!`);
     };
     img.src = event.target.result;
   };
@@ -395,7 +370,7 @@ async function loadPdfFile(file) {
     updateSourceDropdown();
     await renderPdfPageToSource(item, 1);
     switchSourceFile(item.id);
-    showToast(`PDF "${file.name}" carregado.`);
+    showToast(`PDF "${file.name}" carregado com sucesso!`);
   } catch (err) {
     console.error("Erro ao ler PDF:", err);
     showToast("Erro ao processar o arquivo PDF.", "error");
@@ -562,7 +537,7 @@ function updateCropBox(x, y, w, h) {
   const realH = Math.round(h / scale);
 
   state.activeCrop = { x: realX, y: realY, w: realW, h: realH };
-  selectionDimensions.textContent = `${realW} x ${realH} px`;
+  selectionDimensions.textContent = `Área: ${realW} x ${realH} px`;
 
   if (realW > 10 && realH > 10) {
     btnAddSnippet.disabled = false;
@@ -576,7 +551,7 @@ function updateCropBox(x, y, w, h) {
 function resetCropOverlay() {
   cropOverlay.classList.add('hidden');
   state.activeCrop = null;
-  selectionDimensions.textContent = '0 x 0 px';
+  selectionDimensions.textContent = 'Área selecionada: 0 x 0 px';
   btnAddSnippet.disabled = true;
   btnSetHeader.disabled = true;
 }
@@ -610,7 +585,7 @@ function setHeaderFromCrop() {
   renderSnippetsList();
   renderCanvas();
   saveStateToLocalStorage();
-  showToast('Cabeçalho adicionado e salvo!');
+  showToast('Cabeçalho adicionado com sucesso!');
 }
 
 function createSnippetFromCrop() {
@@ -647,7 +622,7 @@ function createSnippetFromCrop() {
   renderCanvas();
   saveStateToLocalStorage();
 
-  showToast('Recorte adicionado e salvo!');
+  showToast('Recorte adicionado com sucesso!');
 }
 
 function removeElement(id) {
@@ -657,7 +632,7 @@ function removeElement(id) {
     renderSnippetsList();
     renderCanvas();
     saveStateToLocalStorage();
-    showToast('Elemento removido.');
+    showToast('Item removido.');
   }
 }
 
@@ -704,14 +679,14 @@ function renderSnippetsList() {
     const isHeader = el.type === 'header';
 
     card.className = isHeader 
-      ? 'bg-amber-50/60 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 rounded-lg p-2.5 shadow-sm space-y-2'
-      : 'bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg p-2.5 shadow-sm space-y-2';
+      ? 'bg-amber-50/80 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 rounded-lg p-3 shadow-sm space-y-2'
+      : 'bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg p-3 shadow-sm space-y-2';
 
     const isFirst = index === 0;
     const isLast = index === state.elements.length - 1;
 
     card.innerHTML = `
-      <div class="flex items-center justify-between text-xs font-semibold ${isHeader ? 'text-amber-900 dark:text-amber-200' : 'text-slate-700 dark:text-slate-200'}">
+      <div class="flex items-center justify-between text-xs font-bold ${isHeader ? 'text-amber-900 dark:text-amber-200' : 'text-slate-700 dark:text-slate-200'}">
         <span class="truncate max-w-[150px] flex items-center">
           <i class="${isHeader ? 'fa-solid fa-heading text-amber-600 mr-1.5' : 'fa-solid fa-scissors text-slate-400 mr-1.5'}"></i>
           ${isHeader ? 'Cabeçalho' : 'Recorte'} #${index + 1}
@@ -719,7 +694,7 @@ function renderSnippetsList() {
         <span class="text-[10px] opacity-70 font-mono">${el.nativeWidth}x${el.nativeHeight}px</span>
       </div>
 
-      <div class="bg-white dark:bg-slate-800 p-1 rounded border overflow-hidden flex justify-center items-center max-h-20">
+      <div class="bg-white dark:bg-slate-800 p-1.5 rounded border overflow-hidden flex justify-center items-center max-h-20">
         <img src="${el.dataUrl}" class="max-h-16 object-contain">
       </div>
 
@@ -727,8 +702,8 @@ function renderSnippetsList() {
         
         ${!isHeader && state.layoutColumns === 2 ? `
           <div class="flex items-center space-x-1">
-            <label class="text-[10px] text-slate-400">Coluna:</label>
-            <select class="col-selector bg-slate-100 dark:bg-slate-600 text-[10px] rounded px-1 py-0.5 outline-none">
+            <label class="text-[10px] text-slate-400 font-medium">Coluna:</label>
+            <select class="col-selector bg-slate-100 dark:bg-slate-600 text-[10px] font-semibold rounded px-1.5 py-0.5 outline-none">
               <option value="1" ${el.column === 1 ? 'selected' : ''}>Col 1</option>
               <option value="2" ${el.column === 2 ? 'selected' : ''}>Col 2</option>
             </select>
@@ -736,13 +711,13 @@ function renderSnippetsList() {
         ` : '<div></div>'}
 
         <div class="flex items-center space-x-1">
-          <button class="btn-up p-1 text-slate-500 hover:text-brand-600 ${isFirst ? 'opacity-30' : ''}" ${isFirst ? 'disabled' : ''} title="Subir posição">
+          <button class="btn-up p-1.5 text-slate-500 hover:text-brand-600 rounded hover:bg-slate-100 dark:hover:bg-slate-600 ${isFirst ? 'opacity-30' : ''}" ${isFirst ? 'disabled' : ''} title="Subir">
             <i class="fa-solid fa-arrow-up text-xs"></i>
           </button>
-          <button class="btn-down p-1 text-slate-500 hover:text-brand-600 ${isLast ? 'opacity-30' : ''}" ${isLast ? 'disabled' : ''} title="Descer posição">
+          <button class="btn-down p-1.5 text-slate-500 hover:text-brand-600 rounded hover:bg-slate-100 dark:hover:bg-slate-600 ${isLast ? 'opacity-30' : ''}" ${isLast ? 'disabled' : ''} title="Descer">
             <i class="fa-solid fa-arrow-down text-xs"></i>
           </button>
-          <button class="btn-del p-1 text-rose-500 hover:text-rose-700 bg-rose-50 dark:hover:bg-rose-950/40 rounded px-1.5" title="Excluir">
+          <button class="btn-del p-1.5 text-rose-500 hover:text-rose-700 bg-rose-50 dark:hover:bg-rose-950/40 rounded px-2" title="Excluir">
             <i class="fa-solid fa-trash-can text-[11px]"></i>
           </button>
         </div>
@@ -773,11 +748,11 @@ function renderSnippetsList() {
 function setColumns(cols) {
   state.layoutColumns = cols;
   if (cols === 1) {
-    btnCols1.className = 'px-2.5 py-1 text-xs font-medium rounded-md transition bg-white dark:bg-slate-600 text-brand-600 dark:text-slate-100 shadow-sm';
-    btnCols2.className = 'px-2.5 py-1 text-xs font-medium rounded-md text-slate-600 dark:text-slate-300 hover:text-slate-900 transition';
+    btnCols1.className = 'px-3 py-1 text-xs font-semibold rounded-md transition bg-white dark:bg-slate-600 text-brand-600 dark:text-slate-100 shadow-sm';
+    btnCols2.className = 'px-3 py-1 text-xs font-semibold rounded-md text-slate-600 dark:text-slate-300 hover:text-slate-900 transition';
   } else {
-    btnCols2.className = 'px-2.5 py-1 text-xs font-medium rounded-md transition bg-white dark:bg-slate-600 text-brand-600 dark:text-slate-100 shadow-sm';
-    btnCols1.className = 'px-2.5 py-1 text-xs font-medium rounded-md text-slate-600 dark:text-slate-300 hover:text-slate-900 transition';
+    btnCols2.className = 'px-3 py-1 text-xs font-semibold rounded-md transition bg-white dark:bg-slate-600 text-brand-600 dark:text-slate-100 shadow-sm';
+    btnCols1.className = 'px-3 py-1 text-xs font-semibold rounded-md text-slate-600 dark:text-slate-300 hover:text-slate-900 transition';
   }
   renderSnippetsList();
   renderCanvas();
@@ -785,7 +760,7 @@ function setColumns(cols) {
 }
 
 /**
- * CALCULO E RENDERIZAÇÃO DE PÁGINAS A4 COM CABEÇALHOS INTERCALADOS
+ * RENDERIZAÇÃO DE PÁGINAS A4
  */
 function renderCanvas() {
   a4PagesContainer.innerHTML = '';
@@ -797,8 +772,8 @@ function renderCanvas() {
     emptyPage.style.height = '1123px';
     emptyPage.innerHTML = `
       <i class="fa-solid fa-file-circle-plus text-5xl mb-4 text-slate-300 dark:text-slate-600"></i>
-      <p class="text-sm font-semibold">Nenhum elemento no layout</p>
-      <p class="text-xs text-slate-400 mt-1">Marque uma área e adicione um Cabeçalho ou Recorte para iniciar.</p>
+      <p class="text-sm font-bold text-slate-700 dark:text-slate-200">Seu documento está vazio</p>
+      <p class="text-xs text-slate-400 mt-1">Faça um recorte à esquerda e clique em "Adicionar Recorte" para ver a prévia aqui.</p>
     `;
     a4PagesContainer.appendChild(emptyPage);
     return;
@@ -832,7 +807,7 @@ function renderCanvas() {
 
     const pageBadge = document.createElement('div');
     pageBadge.className = 'absolute top-2 right-2 bg-slate-900/80 text-white text-[10px] font-mono px-2 py-0.5 rounded z-10 pointer-events-none select-none';
-    pageBadge.textContent = `A4 - Página ${pageIndex++}`;
+    pageBadge.textContent = `Página A4 - ${pageIndex++}`;
     pageEl.appendChild(pageBadge);
 
     a4PagesContainer.appendChild(pageEl);
@@ -844,7 +819,7 @@ function renderCanvas() {
   sections.forEach((sec) => {
     if (sec.header) {
       const hdrWrapper = document.createElement('div');
-      hdrWrapper.className = 'relative group w-full shrink-0 border border-amber-300 dark:border-amber-800 rounded p-0.5 bg-amber-50/20';
+      hdrWrapper.className = 'relative group w-full shrink-0 border border-amber-300 rounded p-0.5 bg-amber-50/20';
 
       const img = document.createElement('img');
       img.src = sec.header.dataUrl;
@@ -853,7 +828,7 @@ function renderCanvas() {
 
       const delBtn = document.createElement('button');
       delBtn.className = 'absolute top-1 right-1 bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition shadow hover:bg-rose-700 z-10';
-      delBtn.title = 'Remover este cabeçalho';
+      delBtn.title = 'Remover cabeçalho';
       delBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
       delBtn.onclick = (e) => {
         e.stopPropagation();
@@ -868,7 +843,7 @@ function renderCanvas() {
 
     if (sec.snippets.length > 0) {
       const gridContainer = document.createElement('div');
-      gridContainer.className = `grid ${state.layoutColumns === 1 ? 'grid-cols-1' : 'grid-cols-2'} w-full border border-slate-100 dark:border-slate-800 rounded p-1`;
+      gridContainer.className = `grid ${state.layoutColumns === 1 ? 'grid-cols-1' : 'grid-cols-2'} w-full border border-slate-100 rounded p-1`;
       gridContainer.style.gap = `${state.blockGap}px`;
 
       const col1 = document.createElement('div');
@@ -893,7 +868,7 @@ function renderCanvas() {
 
         const delBtn = document.createElement('button');
         delBtn.className = 'absolute top-1 right-1 bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition shadow hover:bg-rose-700 z-10';
-        delBtn.title = 'Remover este recorte';
+        delBtn.title = 'Remover recorte';
         delBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
         delBtn.onclick = (e) => {
           e.stopPropagation();
@@ -916,7 +891,7 @@ function renderCanvas() {
 }
 
 /**
- * HIGH RESOLUTION MULTI-PAGE EXPORT
+ * EXPORTAÇÃO DE PDF
  */
 function generatePageCanvas(elementsSubset) {
   return new Promise((resolve) => {
@@ -963,24 +938,9 @@ function generatePageCanvas(elementsSubset) {
   });
 }
 
-async function exportAsPNG() {
-  if (state.elements.length === 0) {
-    showToast('Adicione recortes antes de exportar!', 'error');
-    return;
-  }
-
-  const canvas = await generatePageCanvas(state.elements);
-  const link = document.createElement('a');
-  link.download = `DOE_Pagina_A4_${Date.now()}.png`;
-  link.href = canvas.toDataURL('image/png');
-  link.click();
-
-  showToast('Imagem HD exportada com sucesso!');
-}
-
 async function exportAsPDF() {
   if (state.elements.length === 0) {
-    showToast('Adicione recortes antes de exportar!', 'error');
+    showToast('Adicione ao menos um recorte antes de baixar o PDF!', 'error');
     return;
   }
 
@@ -990,26 +950,9 @@ async function exportAsPDF() {
   const imgData = canvas.toDataURL('image/jpeg', 0.98);
 
   pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
-  pdf.save(`DOE_Documento_A4_${Date.now()}.pdf`);
+  pdf.save(`Documento_A4_${Date.now()}.pdf`);
 
-  showToast('Documento PDF A4 exportado com sucesso!');
-}
-
-function dispatchToGmail() {
-  const to = gmailToInput.value.trim();
-  const subject = gmailSubjectInput.value.trim();
-  const body = gmailBodyInput.value.trim();
-
-  if (!to) {
-    showToast('Informe um e-mail de destino.', 'error');
-    return;
-  }
-
-  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body + '\n\n[Compilação do Diário Oficial via Unificador A4]')}`;
-  
-  window.open(gmailUrl, '_blank');
-  gmailModal.classList.add('hidden');
-  showToast('Caixa de envio do Gmail aberta!');
+  showToast('PDF baixado com sucesso!');
 }
 
 window.addEventListener('DOMContentLoaded', init);
