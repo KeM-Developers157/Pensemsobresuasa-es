@@ -760,7 +760,7 @@ function setColumns(cols) {
 }
 
 /**
- * RENDERIZAÇÃO DE PÁGINAS A4
+ * RENDERIZAÇÃO DE PÁGINAS A4 (DINÂMICA)
  */
 function renderCanvas() {
   a4PagesContainer.innerHTML = '';
@@ -795,14 +795,14 @@ function renderCanvas() {
     }
   });
 
-  let currentPageEl = null;
   let pageIndex = 1;
 
   function createNewA4Page() {
     const pageEl = document.createElement('div');
-    pageEl.className = 'bg-white shadow-2xl relative border border-slate-300 dark:border-slate-700 flex flex-col box-border overflow-hidden space-y-3';
+    pageEl.className = 'bg-white shadow-2xl relative border border-slate-300 dark:border-slate-700 flex flex-col box-border space-y-3 transition-all';
     pageEl.style.width = '794px';
-    pageEl.style.height = '1123px';
+    pageEl.style.minHeight = '1123px';
+    pageEl.style.height = 'auto';
     pageEl.style.padding = `${state.pagePadding}px`;
 
     const pageBadge = document.createElement('div');
@@ -814,7 +814,7 @@ function renderCanvas() {
     return pageEl;
   }
 
-  currentPageEl = createNewA4Page();
+  let currentPageEl = createNewA4Page();
 
   sections.forEach((sec) => {
     if (sec.header) {
@@ -891,23 +891,16 @@ function renderCanvas() {
 }
 
 /**
- * EXPORTAÇÃO DE PDF
+ * EXPORTAÇÃO DE PDF UNIFICADO (PÁGINA ÚNICA CONTINUA)
  */
-function generatePageCanvas(elementsSubset) {
+function generateUnifiedCanvas(elementsSubset) {
   return new Promise((resolve) => {
     const scale = 2;
     const a4W = 794 * scale;
-    const a4H = 1123 * scale;
     const padding = state.pagePadding * scale;
     const gap = state.blockGap * scale;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = a4W;
-    canvas.height = a4H;
-    const ctx = canvas.getContext('2d');
-
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, a4W, a4H);
+    const numCols = state.layoutColumns;
+    const colW = (a4W - (padding * 2) - ((numCols - 1) * gap)) / numCols;
 
     const renderPromises = elementsSubset.map(el => new Promise(res => {
       const img = new Image();
@@ -916,23 +909,66 @@ function generatePageCanvas(elementsSubset) {
     }));
 
     Promise.all(renderPromises).then(rendered => {
-      let currentY = padding;
-      const numCols = state.layoutColumns;
-      const colW = (a4W - (padding * 2) - ((numCols - 1) * gap)) / numCols;
+      // Simulação inicial para calcular a altura total necessária com duas colunas
+      let currentYCol1 = padding;
+      let currentYCol2 = padding;
 
       rendered.forEach(({ el, img }) => {
         if (el.type === 'header') {
+          let maxY = Math.max(currentYCol1, currentYCol2);
           const w = a4W - (padding * 2);
           const h = w * (img.naturalHeight / img.naturalWidth);
-          ctx.drawImage(img, padding, currentY, w, h);
-          currentY += h + gap;
+          currentYCol1 = maxY + h + gap;
+          currentYCol2 = maxY + h + gap;
         } else {
           const h = colW * (img.naturalHeight / img.naturalWidth);
-          const posX = (numCols === 2 && el.column === 2) ? padding + colW + gap : padding;
-          ctx.drawImage(img, posX, currentY, colW, h);
-          currentY += (numCols === 1 || el.column === 2) ? h + gap : 0;
+          let isCol2 = numCols === 2 && el.column === 2;
+          if (isCol2) {
+            currentYCol2 += h + gap;
+          } else {
+            currentYCol1 += h + gap;
+          }
         }
       });
+
+      const totalHeight = Math.max(currentYCol1, currentYCol2) + padding;
+
+      // Cria um único Canvas gigante com a altura exata de todos os elementos somados
+      const canvas = document.createElement('canvas');
+      canvas.width = a4W;
+      canvas.height = totalHeight;
+      const ctx = canvas.getContext('2d');
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, a4W, totalHeight);
+
+      let drawYCol1 = padding;
+      let drawYCol2 = padding;
+
+      rendered.forEach(({ el, img }) => {
+        if (el.type === 'header') {
+          let maxY = Math.max(drawYCol1, drawYCol2);
+          const w = a4W - (padding * 2);
+          const h = w * (img.naturalHeight / img.naturalWidth);
+          ctx.drawImage(img, padding, maxY, w, h);
+          drawYCol1 = maxY + h + gap;
+          drawYCol2 = maxY + h + gap;
+        } else {
+          const h = colW * (img.naturalHeight / img.naturalWidth);
+          let isCol2 = numCols === 2 && el.column === 2;
+          let targetY = isCol2 ? drawYCol2 : drawYCol1;
+          let posX = isCol2 ? padding + colW + gap : padding;
+
+          ctx.drawImage(img, posX, targetY, colW, h);
+
+          if (isCol2) {
+            drawYCol2 = targetY + h + gap;
+          } else {
+            drawYCol1 = targetY + h + gap;
+          }
+        }
+      });
+
       resolve(canvas);
     });
   });
@@ -945,14 +981,19 @@ async function exportAsPDF() {
   }
 
   const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const canvas = await generatePageCanvas(state.elements);
+  const canvas = await generateUnifiedCanvas(state.elements);
+  
+  const imgWidth = 210; // largura em mm (A4)
+  const imgHeight = (canvas.height * imgWidth) / canvas.width; // altura proporcional personalizada
+  
+  // Cria o PDF com uma página única de altura personalizada (documento unificado e contínuo)
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [imgWidth, imgHeight] });
   const imgData = canvas.toDataURL('image/jpeg', 0.98);
 
-  pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
-  pdf.save(`Documento_A4_${Date.now()}.pdf`);
+  pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+  pdf.save(`Documento_Unificado_${Date.now()}.pdf`);
 
-  showToast('PDF baixado com sucesso!');
+  showToast('PDF unificado gerado com sucesso!');
 }
 
 window.addEventListener('DOMContentLoaded', init);
